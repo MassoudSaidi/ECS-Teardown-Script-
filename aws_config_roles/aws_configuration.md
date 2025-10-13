@@ -117,25 +117,35 @@ Run the Python script from the `src/` directory: `python create_role.py`
 ### Deploy Infrastructure with Terraform: 
 Once the role is ready, use it to run your Terraform commands.
 
-Open a new terminal at the my-project root.
+AWS Authentication for Terraform
+This Terraform solution is managed by Terragrunt and is pre-configured to use a specific AWS profile named dev for all deployment operations.
+This approach is a security best practice. The dev profile does not use long-term user credentials. Instead, it securely assumes a temporary, permissions-limited IAM role (dev2-terraform_deployer_role) that is purpose-built for managing this infrastructure.
+The profile is "hardcoded" within the terragrunt.hcl file in each deployment directory (e.g., infrastructure/live/dev/ecs-service/). This ensures that all deployments are consistent and secure by default.
 
-Activate the consumer configuration:
+```hcl
+# Example from terragrunt.hcl
 
-**PowerShell:**
+generate "provider" {
+  path      = "provider.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = <<EOF
+provider "aws" {
+  region                   = "ca-central-1"
+  profile                  = "dev" # <-- Hardcoded to use the 'dev' profile
 
-```powershell
-$env:AWS_CONFIG_FILE = ".\.aws\config"
-$env:AWS_SHARED_CREDENTIALS_FILE = ".\.aws\credentials"
-$env:AWS_PROFILE = "dev"
+  # The provider is also pointed to the project-local .aws folder
+  shared_config_files      = ["${get_repo_root()}/.aws/config"]
+  shared_credentials_files = ["${get_repo_root()}/.aws/credentials"]
+}
+EOF
+}
 ```
 
-**CMD:**
-
-```cmd
-set AWS_CONFIG_FILE=.\.aws\config
-set AWS_SHARED_CREDENTIALS_FILE=.\.aws\credentials
-set AWS_PROFILE=dev
-```
+### Your Local Setup Requirement
+To use this solution, you only need to ensure your project-local .aws folder is correctly configured. Terragrunt handles the rest automatically.
+The .aws folder must exist in the project root.
+Your .aws/credentials file must contain the keys for the [base] profile.
+Your .aws/config file must contain the definitions for both the [profile base] and the [profile dev].
 
 Navigate to the `terraform/` directory and run your commands: `terragrunt apply`, etc.
 
