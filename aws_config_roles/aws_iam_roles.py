@@ -312,6 +312,22 @@ class IAMTerraformDeployerRole(IAMRoles):
                     "Resource": "*"
                 },
                 {
+                    "Sid": "IAMUserManagementForCI",
+                    "Effect": "Allow",
+                    "Action": [
+                        "iam:CreateUser",
+                        "iam:DeleteUser",
+                        "iam:GetUser",
+                        "iam:AttachUserPolicy",
+                        "iam:DetachUserPolicy",
+                        "iam:ListAttachedUserPolicies",
+                        "iam:CreateAccessKey",
+                        "iam:DeleteAccessKey",
+                        "iam:ListAccessKeys"
+                    ],
+                    "Resource": "*"
+                },                
+                {
                     "Sid": "Lambda",
                     "Effect": "Allow",
                     "Action": [
