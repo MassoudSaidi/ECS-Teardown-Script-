@@ -4,6 +4,6 @@ output = json
 
 [profile dev]
 role_arn = arn:aws:iam::866134557891:role/service-role/dev2-terraform_deployer_role <--"dev2-terraform_deployer_role" is the output of the create_role.py script
-source_profile = base
+source_profile = default
 output = json
 region = ca-central-1

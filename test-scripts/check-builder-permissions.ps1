@@ -11,7 +11,7 @@
     .\check-builder-permissions.ps1
 #>
 param (
-    [string]$Profile = "base"
+    [string]$Profile = "dev"
 )
 
 # --- 1. Activate Project-Local AWS Configuration ---

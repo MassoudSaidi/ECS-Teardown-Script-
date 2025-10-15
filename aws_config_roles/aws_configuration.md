@@ -6,9 +6,9 @@ This guide provides step-by-step instructions for configuring your local AWS env
 
 We will establish two distinct AWS profiles:
 
-- **base Profile (The Builder)**: A profile using your primary IAM user credentials. Its sole purpose is to run the Python script that creates and manages the custom IAM deployment role. It has the direct permissions needed to build the necessary IAM resources.
+- **default Profile (The Builder)**: A profile using your primary IAM user credentials. Its sole purpose is to run the Python script that creates and manages the custom IAM deployment role. It has the direct permissions needed to build the necessary IAM resources.
 
-- **dev Profile (The Consumer)**: A profile that does not have its own credentials. Instead, it assumes the custom role created by the base profile. This profile will be used by Terraform to deploy and manage the main application infrastructure (ECS, ElastiCache, etc.). This ensures Terraform operates with limited, temporary permissions.
+- **dev Profile (The Consumer)**: A profile that does not have its own credentials. Instead, it assumes the custom role created by the default profile. This profile will be used by Terraform to deploy and manage the main application infrastructure (ECS, ElastiCache, etc.). This ensures Terraform operates with limited, temporary permissions.
 
 This separation of duties is a critical security measure that prevents long-term user credentials from being used for routine infrastructure tasks.
 
@@ -26,7 +26,7 @@ Open the file and paste the following content. Replace the placeholder values wi
 
 This file is located at `my-project/.aws/credentials`
 ```ini
-[base]  
+[default]  
 aws_access_key_id = AKIAxxxxxxxxxxxxxxxx  
 aws_secret_access_key = xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
@@ -41,13 +41,13 @@ Open the file and paste the following content. The `role_arn` must be exactly as
 
  This file is located at `my-project/.aws/config`
 ```ini
-[profile base]  
+[default]  
 region = ca-central-1  
 output = json  
 
 [profile dev]  
 role_arn = arn:aws:iam::866134557891:role/service-role/dev2-terraform_deployer_role  
-source_profile = base  
+source_profile = default  
 output = json  
 region = ca-central-1
 ```
@@ -66,7 +66,7 @@ $env:AWS_CONFIG_FILE = ".\.aws\config"
 $env:AWS_SHARED_CREDENTIALS_FILE = ".\.aws\credentials"
 
 # Set the active profile to the Builder (for Python script)
-$env:AWS_PROFILE = "base"
+$env:AWS_PROFILE = "default"
 
 # Set the active profile to the Consumer (for Terraform)
 $env:AWS_PROFILE = "dev"
@@ -81,7 +81,7 @@ set AWS_CONFIG_FILE=.\.aws\config
 set AWS_SHARED_CREDENTIALS_FILE=.\.aws\credentials
 
 :: Set the active profile to the Builder (for Python script)
-set AWS_PROFILE=base
+set AWS_PROFILE=default
 
 :: Set the active profile to the Consumer (for Terraform)
 set AWS_PROFILE=dev
@@ -101,7 +101,7 @@ Activate the builder configuration:
 ```powershell
 $env:AWS_CONFIG_FILE = ".\.aws\config"
 $env:AWS_SHARED_CREDENTIALS_FILE = ".\.aws\credentials"
-$env:AWS_PROFILE = "base"
+$env:AWS_PROFILE = "default"
 ```
 
 **CMD:**
@@ -109,18 +109,18 @@ $env:AWS_PROFILE = "base"
 ```cmd
 set AWS_CONFIG_FILE=.\.aws\config
 set AWS_SHARED_CREDENTIALS_FILE=.\.aws\credentials
-set AWS_PROFILE=base
+set AWS_PROFILE=default
 ```
 
-Run the Python script from the `src/` directory: `python create_role.py`
+Run the Python script from the directory: `python ./aws_config_roles/create_role.py`
 
 ### Deploy Infrastructure with Terraform: 
 Once the role is ready, use it to run your Terraform commands.
 
 AWS Authentication for Terraform
-This Terraform solution is managed by Terragrunt and is pre-configured to use a specific AWS profile named dev for all deployment operations.
-This approach is a security best practice. The dev profile does not use long-term user credentials. Instead, it securely assumes a temporary, permissions-limited IAM role (dev2-terraform_deployer_role) that is purpose-built for managing this infrastructure.
-The profile is "hardcoded" within the terragrunt.hcl file in each deployment directory (e.g., infrastructure/live/dev/ecs-service/). This ensures that all deployments are consistent and secure by default.
+This Terraform solution is managed by Terragrunt and is pre-configured to use a specific AWS profile named `dev`for all deployment operations.
+This approach is a security best practice. The dev profile does not use long-term user credentials. Instead, it securely assumes a temporary, permissions-limited IAM role (`dev2-terraform_deployer_role`) that is purpose-built for managing this infrastructure.
+The profile is "hardcoded" within the terragrunt.hcl file in each deployment directory (e.g., `infrastructure/live/dev`, `infrastructure/bootstrap-git-actions` and `infrastructure/bootstrap-cognito`). This ensures that all deployments are consistent and secure by default.
 
 ```hcl
 # Example from terragrunt.hcl
@@ -144,8 +144,8 @@ EOF
 ### Your Local Setup Requirement
 To use this solution, you only need to ensure your project-local .aws folder is correctly configured. Terragrunt handles the rest automatically.
 The .aws folder must exist in the project root.
-Your .aws/credentials file must contain the keys for the [base] profile.
-Your .aws/config file must contain the definitions for both the [profile base] and the [profile dev].
+Your .aws/credentials file must contain the keys for the [default] profile.
+Your .aws/config file must contain the definitions for [profile dev].
 
 Navigate to the `terraform/` directory and run your commands: `terragrunt apply`, etc.
 
@@ -155,13 +155,20 @@ Navigate to the `terraform/` directory and run your commands: `terragrunt apply`
 Before running these commands, ensure your terminal is correctly configured with the `AWS_..._FILE` and `AWS_PROFILE` environment variables as described above. This is the most important command to confirm which identity you are currently operating as.
 
 ### Verify the Builder (User):
-First, set your session to use the base profile.
+First, set your session to use the default profile.
 
 ```Bash
 aws sts get-caller-identity
 ```
 
-**Expected Output:** The ARN should be for your IAM User, `arn:aws:iam::...:user/bsup_assume_role_dev`.
+**Expected Output:** 
+```json
+{
+    "UserId": "XXXXXXXXXXXXXXXXXXXXXXXXX",
+    "Account": "88888888888888",
+    "Arn": "arn:aws:iam::866134557891:user/bsup_assume_role_dev"
+}
+```
 
 ### Verify the Consumer (Role):
 First, set your session to use the dev profile.
@@ -170,9 +177,21 @@ First, set your session to use the dev profile.
 aws sts get-caller-identity
 ```
 
-**Expected Output:** The ARN should be for the Assumed Role, `arn:aws:sts::...:assumed-role/dev2-terraform_deployer_role/...`. This is the ultimate test of success.
+For simple tests you may switch to specific profiles by:
+```bash
+aws sts get-caller-identity --profile dev
+```
 
-If you get an `AccessDenied` error when trying to use the dev profile, switch your terminal to use the base profile and run these diagnostic commands:
+**Expected Output:** 
+```json
+{
+    "UserId": "AROA4TKNEQTBSODGRCTCR:botocore-session-1760546334",
+    "Account": "866134557891",
+    "Arn": "arn:aws:sts::866134557891:assumed-role/dev2-terraform_deployer_role/botocore-session-1760546334"
+}
+```
+
+If you get an `AccessDenied` error when trying to use the dev profile, switch your terminal to use the default profile and run these diagnostic commands:
 
 #### Check if the Role Exists:
 

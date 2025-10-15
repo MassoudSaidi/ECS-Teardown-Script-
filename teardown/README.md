@@ -1,5 +1,16 @@
 # smart_nuke.py
 
+**Important**:  
+It's assumed the required permissions to successfully run this scripts is fulfilled by switching to the `dev` profile.
+```powershell
+# Point to the local config and credentials files
+$env:AWS_CONFIG_FILE = ".\.aws\config"
+$env:AWS_SHARED_CREDENTIALS_FILE = ".\.aws\credentials"
+
+# Set the active profile to the Consumer (for Terraform)
+$env:AWS_PROFILE = "dev"
+```
+
 ## Overview
 `smart_nuke.py` is a Python utility designed to **forcefully and safely tear down AWS ECS environments** that were deployed using Terraform/Terragrunt.  
 
@@ -8,7 +19,7 @@ In complex ECS stacks (clusters, services, load balancers, auto-scaling groups),
 ---
 
 ## Why is this script needed?
-- **terragrunt destroy limitations**: terragrunt destroys resources in parallel based on dependency graphs. In ECS/VPC stacks, this can lead to deadlocks (e.g., ENIs still attached, Security Groups still in use).
+- **terragrunt/terraform destroy limitations**: terragrunt destroys resources in parallel based on dependency graphs. In ECS/VPC stacks, this can lead to deadlocks (e.g., ENIs still attached, Security Groups still in use).
 - **Cost control**: Orphaned resources left running by failed destroys can continue to generate AWS costs.
 - **Deployment reliability**: "Ghost" resources not tracked in state files can break future `terragrunt apply` commands.
 
@@ -20,7 +31,7 @@ In complex ECS stacks (clusters, services, load balancers, auto-scaling groups),
 - Deletes ECS services, load balancers, auto-scaling groups, and ECS clusters in a safe, sequential order.
 - Complements Terraform by ensuring a **clean teardown** where `terragrunt destroy` might fail.
 
-⚠️ **Important**:  
+**Important**:  
 This script **only targets ECS infrastructure**. It does **not** affect other Terraform modules such as bootstrap Cognito or supporting resources.
 
 ---
@@ -30,3 +41,6 @@ Before running, ensure the following are installed and configured:
 - **Python 3.x** with required libraries:
   ```bash
   pip install boto3
+  ```
+
+
